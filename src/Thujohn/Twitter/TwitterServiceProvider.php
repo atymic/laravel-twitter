@@ -41,24 +41,18 @@ class TwitterServiceProvider extends ServiceProvider
 
         if (strpos(strtolower($laravelVersion), 'lumen') !== false) {
             $isLumen = true;
-
-            $laravelVersion = str_replace('Lumen (', '', $laravelVersion);
         }
 
-        if ($laravelVersion == 5) {
-            $this->mergeConfigFrom(__DIR__.'/../../config/config.php', 'ttwitter');
+        $this->mergeConfigFrom(__DIR__.'/../../config/config.php', 'ttwitter');
 
-            if ($isLumen) {
-                $this->publishes([
-                    __DIR__.'/../config/config.php' => base_path('config/ttwitter.php'),
-                ]);
-            } else {
-                $this->publishes([
-                    __DIR__.'/../../config/config.php' => config_path('ttwitter.php'),
-                ]);
-            }
-        } elseif ($laravelVersion == 4) {
-            $this->package('thujohn/twitter', 'ttwitter', __DIR__.'/../..');
+        if ($isLumen) {
+            $this->publishes([
+                __DIR__.'/../config/config.php' => base_path('config/ttwitter.php'),
+            ]);
+        } else {
+            $this->publishes([
+                __DIR__.'/../../config/config.php' => config_path('ttwitter.php'),
+            ]);
         }
 
         $this->app->singleton(Twitter::class, function () use ($app) {
