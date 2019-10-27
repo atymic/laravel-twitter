@@ -6,9 +6,28 @@
 [![StyleCI](https://styleci.io/repos/216295051/shield)](https://styleci.io/repos/216295051)
 [![Total Downloads](https://img.shields.io/packagist/dt/atymic/laravel-twitter.svg?style=flat-square)](https://packagist.org/packages/atymic/laravel-twitter)
 
-Twitter API for Laravel 5.5+ & 6.x
+Twitter API for Laravel 5.5+ & 6.x, based on `thujohn/twitter`
 
 You need to create an application and create your access token in the [Application Management](https://apps.twitter.com/).
+
+## Split from thujohn/twitter & Roadmap
+
+Unfortunately [thujohn/twitter](https://github.com/thujohn/twitter/issues/261) is no longer maintained. As a result, we
+have created a fork here. The plan is to continue developing the package separate from the main repository, and merge
+back in our changes if becomes maintained again.
+
+The rough roadmap for the package is:
+
+### 2.x 
+
+For the time being, we'll keep the original package namespace & not break backward compatibility. You'll be able to use
+the fork by just changing your composer dependency from `thujohn/twitter` to `atymic/laravel-twitter`
+
+### 3.x 
+
+If the original package continues to lack maintenance, the plan is to bump the major version to 3x. We'll switch the
+package namespace, and make some breaking changes to improve the package. We'll also release a detailed migration guide
+to make it as easy as possible.
 
 ## Installation
 
