@@ -1,6 +1,10 @@
 # Twitter
 
-Badges here 
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/atymic/laravel-twitter.svg?style=flat-square)](https://packagist.org/packages/atymic/laravel-twitter)
+[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
+[![Build Status](https://img.shields.io/travis/atymic/laravel-twitter/master.svg?style=flat-square)](https://travis-ci.org/atymic/laravel-twitter)
+[![StyleCI](https://styleci.io/repos/216295051/shield)](https://styleci.io/repos/216295051)
+[![Total Downloads](https://img.shields.io/packagist/dt/atymic/laravel-twitter.svg?style=flat-square)](https://packagist.org/packages/atymic/laravel-twitter)
 
 Twitter API for Laravel 5.5+ & 6.x
 
