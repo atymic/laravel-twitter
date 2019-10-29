@@ -40,21 +40,21 @@ class Twitter extends tmhOAuth
     /**
      * Store the config values.
      */
-    private $tconfig;
+    protected $tconfig;
 
     /**
      * Store the config values for the parent class.
      */
-    private $parent_config;
+    protected $parent_config;
 
     /**
      * Only for debugging.
      */
-    private $debug;
+    protected $debug;
 
-    private $log = [];
+    protected $log = [];
 
-    private $error;
+    protected $error;
 
     public function __construct(Config $config, SessionStore $session)
     {
@@ -96,7 +96,7 @@ class Twitter extends tmhOAuth
      *
      * @param array $config An array containing the values that should be overwritten.
      *
-     * @return void
+     * @return self
      */
     public function reconfig($config)
     {
@@ -125,7 +125,7 @@ class Twitter extends tmhOAuth
      *
      * @param string $oauth_callback [Optional] The callback provided for Twitter's API. The user will be redirected there after authorizing your app on Twitter.
      *
-     * @returns Array|Bool a key/value array containing oauth_token and oauth_token_secret in case of success
+     * @return array|bool a key/value array containing oauth_token and oauth_token_secret in case of success
      */
     public function getRequestToken($oauth_callback = null)
     {
@@ -156,7 +156,7 @@ class Twitter extends tmhOAuth
     /**
      * Get an access token for a logged in user.
      *
-     * @returns Array|Bool key/value array containing the token in case of success
+     * @return array|bool key/value array containing the token in case of success
      */
     public function getAccessToken($oauth_verifier = null)
     {
