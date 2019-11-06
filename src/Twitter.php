@@ -1,24 +1,24 @@
 <?php
 
-namespace Thujohn\Twitter;
+namespace Atymic\Twitter;
 
 use Carbon\Carbon as Carbon;
 use Illuminate\Config\Repository as Config;
 use Illuminate\Session\Store as SessionStore;
 use RunTimeException;
-use Thujohn\Twitter\Traits\AccountTrait;
-use Thujohn\Twitter\Traits\BlockTrait;
-use Thujohn\Twitter\Traits\DirectMessageTrait;
-use Thujohn\Twitter\Traits\FavoriteTrait;
-use Thujohn\Twitter\Traits\FriendshipTrait;
-use Thujohn\Twitter\Traits\GeoTrait;
-use Thujohn\Twitter\Traits\HelpTrait;
-use Thujohn\Twitter\Traits\ListTrait;
-use Thujohn\Twitter\Traits\MediaTrait;
-use Thujohn\Twitter\Traits\SearchTrait;
-use Thujohn\Twitter\Traits\StatusTrait;
-use Thujohn\Twitter\Traits\TrendTrait;
-use Thujohn\Twitter\Traits\UserTrait;
+use Atymic\Twitter\Traits\AccountTrait;
+use Atymic\Twitter\Traits\BlockTrait;
+use Atymic\Twitter\Traits\DirectMessageTrait;
+use Atymic\Twitter\Traits\FavoriteTrait;
+use Atymic\Twitter\Traits\FriendshipTrait;
+use Atymic\Twitter\Traits\GeoTrait;
+use Atymic\Twitter\Traits\HelpTrait;
+use Atymic\Twitter\Traits\ListTrait;
+use Atymic\Twitter\Traits\MediaTrait;
+use Atymic\Twitter\Traits\SearchTrait;
+use Atymic\Twitter\Traits\StatusTrait;
+use Atymic\Twitter\Traits\TrendTrait;
+use Atymic\Twitter\Traits\UserTrait;
 use tmhOAuth;
 
 class Twitter extends tmhOAuth

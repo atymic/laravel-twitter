@@ -1,9 +1,9 @@
 <?php
 
-namespace Thujohn\Twitter;
+namespace Atymic\Twitter;
 
 use Illuminate\Support\ServiceProvider;
-use Thujohn\Twitter\Twitter;
+use Atymic\Twitter\Twitter;
 
 class TwitterServiceProvider extends ServiceProvider
 {

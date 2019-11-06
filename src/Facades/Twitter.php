@@ -1,6 +1,6 @@
 <?php
 
-namespace Thujohn\Twitter\Facades;
+namespace Atymic\Twitter\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
