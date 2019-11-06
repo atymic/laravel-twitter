@@ -2,10 +2,6 @@
 
 namespace Atymic\Twitter;
 
-use Carbon\Carbon as Carbon;
-use Illuminate\Config\Repository as Config;
-use Illuminate\Session\Store as SessionStore;
-use RunTimeException;
 use Atymic\Twitter\Traits\AccountTrait;
 use Atymic\Twitter\Traits\BlockTrait;
 use Atymic\Twitter\Traits\DirectMessageTrait;
@@ -19,10 +15,20 @@ use Atymic\Twitter\Traits\SearchTrait;
 use Atymic\Twitter\Traits\StatusTrait;
 use Atymic\Twitter\Traits\TrendTrait;
 use Atymic\Twitter\Traits\UserTrait;
-use tmhOAuth;
+use Carbon\Carbon;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Psr7\Response;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
+use RunTimeException;
 
-class Twitter extends tmhOAuth
+class Twitter
 {
+    const VERSION = '3.x-dev';
+
     use AccountTrait,
         BlockTrait,
         DirectMessageTrait,
@@ -37,93 +43,56 @@ class Twitter extends tmhOAuth
         TrendTrait,
         UserTrait;
 
-    /**
-     * Store the config values.
-     */
-    protected $tconfig;
 
-    /**
-     * Store the config values for the parent class.
-     */
-    protected $parent_config;
+    /** @var Configuration */
+    protected $config;
+    /** @var Client */
+    protected $httpClient;
+    /** @var LoggerInterface|null */
+    protected $logger;
 
-    /**
-     * Only for debugging.
-     */
+    /** @var bool */
     protected $debug;
-
-    protected $log = [];
 
     protected $error;
 
-    public function __construct(Config $config, SessionStore $session)
+    public function __construct(Configuration $config, ?Client $httpClient = null, ?LoggerInterface $logger = null)
     {
-        if ($config->has('ttwitter::config')) {
-            $this->tconfig = $config->get('ttwitter::config');
-        } elseif ($config->get('ttwitter')) {
-            $this->tconfig = $config->get('ttwitter');
-        } else {
-            throw new RunTimeException('No config found');
+        if ($httpClient === null) {
+            $client = new Client();
         }
 
-        $this->debug = (isset($this->tconfig['debug']) && $this->tconfig['debug']) ? true : false;
+        $this->debug = $config->isDebugMode();
 
-        $this->parent_config = [];
-        $this->parent_config['consumer_key'] = $this->tconfig['CONSUMER_KEY'];
-        $this->parent_config['consumer_secret'] = $this->tconfig['CONSUMER_SECRET'];
-        $this->parent_config['token'] = $this->tconfig['ACCESS_TOKEN'];
-        $this->parent_config['secret'] = $this->tconfig['ACCESS_TOKEN_SECRET'];
+        // Todo session abstraction
 
-        if ($session->has('access_token')) {
-            $access_token = $session->get('access_token');
+        $this->config = $config;
+        $this->httpClient = $httpClient;
+    }
 
-            if (is_array($access_token) && isset($access_token['oauth_token']) && isset($access_token['oauth_token_secret']) && ! empty($access_token['oauth_token']) && ! empty($access_token['oauth_token_secret'])) {
-                $this->parent_config['token'] = $access_token['oauth_token'];
-                $this->parent_config['secret'] = $access_token['oauth_token_secret'];
-            }
+    public function reconfigure($config)
+    {
+        // TODO implement
+    }
+
+    public function log(string $message, array $context = [], string $logLevel = LogLevel::DEBUG): void
+    {
+        if ($this->logger === null) {
+            return;
         }
 
-        $this->parent_config['use_ssl'] = $this->tconfig['USE_SSL'];
-        $this->parent_config['user_agent'] = 'LTTW '.parent::VERSION;
-
-        $config = array_merge($this->parent_config, $this->tconfig);
-
-        parent::__construct($this->parent_config);
-    }
-
-    /**
-     * Set new config values for the OAuth class like different tokens.
-     *
-     * @param array $config An array containing the values that should be overwritten.
-     *
-     * @return self
-     */
-    public function reconfig($config)
-    {
-        // The consumer key and secret must always be included when reconfiguring
-        $config = array_merge($this->parent_config, $config);
-
-        parent::reconfigure($config);
-
-        return $this;
-    }
-
-    private function log($message)
-    {
-        if ($this->debug) {
-            $this->log[] = $message;
+        if (!$this->debug && $logLevel = LogLevel::DEBUG) {
+            return;
         }
-    }
 
-    public function logs()
-    {
-        return $this->log;
+        $this->logger->log($logLevel, $message, $context);
     }
 
     /**
      * Get a request_token from Twitter.
      *
-     * @param string $oauth_callback [Optional] The callback provided for Twitter's API. The user will be redirected there after authorizing your app on Twitter.
+     * @param string $oauth_callback [Optional] The callback provided for Twitter's API. The user will be redirected
+     *                               there after authorizing your app on Twitter.
      *
      * @return array|bool a key/value array containing oauth_token and oauth_token_secret in case of success
      */
@@ -131,7 +100,7 @@ class Twitter extends tmhOAuth
     {
         $parameters = [];
 
-        if (! empty($oauth_callback)) {
+        if (!empty($oauth_callback)) {
             $parameters['oauth_callback'] = $oauth_callback;
         }
 
@@ -139,7 +108,7 @@ class Twitter extends tmhOAuth
 
         $response = $this->response;
 
-        if (isset($response['code']) && $response['code'] == 200 && ! empty($response)) {
+        if (isset($response['code']) && $response['code'] == 200 && !empty($response)) {
             $get_parameters = $response['response'];
             $token = [];
             parse_str($get_parameters, $token);
@@ -162,7 +131,7 @@ class Twitter extends tmhOAuth
     {
         $parameters = [];
 
-        if (! empty($oauth_verifier)) {
+        if (!empty($oauth_verifier)) {
             $parameters['oauth_verifier'] = $oauth_verifier;
         }
 
@@ -170,14 +139,14 @@ class Twitter extends tmhOAuth
 
         $response = $this->response;
 
-        if (isset($response['code']) && $response['code'] == 200 && ! empty($response)) {
+        if (isset($response['code']) && $response['code'] == 200 && !empty($response)) {
             $get_parameters = $response['response'];
             $token = [];
             parse_str($get_parameters, $token);
 
             // Reconfigure the tmhOAuth class with the new tokens
             $this->reconfig([
-                'token'  => $token['oauth_token'],
+                'token' => $token['oauth_token'],
                 'secret' => $token['oauth_token_secret'],
             ]);
 
@@ -199,92 +168,85 @@ class Twitter extends tmhOAuth
         }
 
         if ($force_login) {
-            return $this->tconfig['AUTHENTICATE_URL']."?oauth_token={$token}&force_login=true";
+            return $this->tconfig['AUTHENTICATE_URL'] . "?oauth_token={$token}&force_login=true";
         } elseif (empty($sign_in_with_twitter)) {
-            return $this->tconfig['AUTHORIZE_URL']."?oauth_token={$token}";
+            return $this->tconfig['AUTHORIZE_URL'] . "?oauth_token={$token}";
         } else {
-            return $this->tconfig['AUTHENTICATE_URL']."?oauth_token={$token}";
+            return $this->tconfig['AUTHENTICATE_URL'] . "?oauth_token={$token}";
         }
     }
 
-    public function query($name, $requestMethod = 'GET', $parameters = [], $multipart = false, $extension = 'json')
+    public function buildUrl(string $host, string $version, string $name, string $extension): string
     {
-        $this->config['host'] = $this->tconfig['API_URL'];
+        return sprintf('https://%s/%s/%s.%s', $host, $version, $name, $extension);
+    }
 
-        if ($multipart) {
-            $this->config['host'] = $this->tconfig['UPLOAD_URL'];
-        }
-
-        $url = parent::url($this->tconfig['API_VERSION'].'/'.$name, $extension);
-
-        $this->log('METHOD : '.$requestMethod);
-        $this->log('QUERY : '.$name);
-        $this->log('URL : '.$url);
-        $this->log('PARAMETERS : '.http_build_query($parameters));
-        $this->log('MULTIPART : '.($multipart ? 'true' : 'false'));
-
-        parent::user_request([
-            'method'    => $requestMethod,
-            'host'      => $name,
-            'url'       => $url,
-            'params'    => $parameters,
-            'multipart' => $multipart,
-        ]);
-
-        $response = $this->response;
-
-        $format = 'object';
+    public function query(
+        string $name,
+        string $requestMethod = 'GET',
+        array $parameters = [],
+        bool $multipart = false,
+        string $extension = 'json'
+    ) {
+        $host = $multipart ? $this->config->getApiUrl() : $this->config->getUploadUrl();
+        $url = $this->buildUrl($host, $this->config->getApiVersion(), $name, $extension);
+        $format = 'array'; // todo const
 
         if (isset($parameters['format'])) {
             $format = $parameters['format'];
+            unset($parameters['format']);
         }
 
-        $this->log('FORMAT : '.$format);
+        $this->log('Making Request', [
+            'method' => $requestMethod,
+            'query' => $name,
+            'url' => $name,
+            'params' => http_build_query($parameters),
+            'multipart' => $multipart,
+            'format' => $format,
+        ]);
 
-        $error = $response['error'];
 
-        if ($error) {
-            $this->log('ERROR_CODE : '.$response['errno']);
-            $this->log('ERROR_MSG : '.$response['error']);
+        $requestOptions = [];
 
-            $this->setError($response['errno'], $response['error']);
+        if ($requestMethod === 'GET') {
+            $requestOptions['query'] = $parameters;
         }
 
-        if (isset($response['code']) && ($response['code'] < 200 || $response['code'] > 206)) {
-            $_response = $this->jsonDecode($response['response'], true);
-
-            if (is_array($_response)) {
-                if (array_key_exists('errors', $_response)) {
-                    $error_code = $_response['errors'][0]['code'];
-                    $error_msg = $_response['errors'][0]['message'];
-                } else {
-                    $error_code = $response['code'];
-                    $error_msg = $response['error'];
-                }
-            } else {
-                $error_code = $response['code'];
-                $error_msg = ($error_code == 503) ? 'Service Unavailable' : 'Unknown error';
-            }
-
-            $this->log('ERROR_CODE : '.$error_code);
-            $this->log('ERROR_MSG : '.$error_msg);
-
-            $this->setError($error_code, $error_msg);
-
-            throw new RunTimeException('['.$error_code.'] '.$error_msg, $response['code']);
+        if ($requestMethod === 'POST') {
+            $requestOptions['form_params'] = $parameters;
         }
 
+        try {
+            $response = $this->httpClient->request($requestMethod, $url, $requestOptions);
+        } catch (ClientException $exception) {
+            // todo handle this
+            throw $exception;
+        } catch (ServerException $exception) {
+            // todo handle this
+            throw $exception;
+        } catch (RequestException $exception) {
+            // todo handle this
+            throw $exception;
+        }
+
+        return $this->getResponseAs($response, $format);
+    }
+
+    public function getResponseAs(Response $response, string $format)
+    {
+        $body = (string) $response->getBody();
+
+        // todo const these
         switch ($format) {
+            case 'object':
+                return $this->jsonDecode($body, false);
+            case 'json':
+                return $body;
             default:
-            case 'object': $response = $this->jsonDecode($response['response']);
-            break;
-            case 'json': $response = $response['response'];
-            break;
-            case 'array': $response = $this->jsonDecode($response['response'], true);
-            break;
+            case 'array':
+                return $this->jsonDecode($body, true);
         }
-
-        return $response;
     }
 
     public function get($name, $parameters = [], $multipart = false, $extension = 'json')
@@ -306,7 +268,7 @@ class Twitter extends tmhOAuth
             $type = 'array';
         } else {
             $type = 'text';
-            $text = ' '.$tweet;
+            $text = ' ' . $tweet;
         }
 
         $patterns = [];
@@ -319,11 +281,11 @@ class Twitter extends tmhOAuth
         if ($type == 'text') {
             // URL
             $pattern = '(?xi)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))';
-            $text = preg_replace_callback('#'.$patterns['url'].'#i', function ($matches) {
+            $text = preg_replace_callback('#' . $patterns['url'] . '#i', function ($matches) {
                 $input = $matches[0];
                 $url = preg_match('!^https?://!i', $input) ? $input : "http://$input";
 
-                return '<a href="'.$url.'" target="_blank" rel="nofollow">'."$input</a>";
+                return '<a href="' . $url . '" target="_blank" rel="nofollow">' . "$input</a>";
             }, $text);
         } else {
             $text = $tweet['text'];
@@ -335,14 +297,14 @@ class Twitter extends tmhOAuth
             if (array_key_exists('media', $entities)) {
                 foreach ($entities['media'] as $media) {
                     $search[] = $media['url'];
-                    $replace[] = '<a href="'.$media['media_url_https'].'" target="_blank">'.$media['display_url'].'</a>';
+                    $replace[] = '<a href="' . $media['media_url_https'] . '" target="_blank">' . $media['display_url'] . '</a>';
                 }
             }
 
             if (array_key_exists('urls', $entities)) {
                 foreach ($entities['urls'] as $url) {
                     $search[] = $url['url'];
-                    $replace[] = '<a href="'.$url['expanded_url'].'" target="_blank" rel="nofollow">'.$url['display_url'].'</a>';
+                    $replace[] = '<a href="' . $url['expanded_url'] . '" target="_blank" rel="nofollow">' . $url['display_url'] . '</a>';
                 }
             }
 
@@ -350,16 +312,16 @@ class Twitter extends tmhOAuth
         }
 
         // Mailto
-        $text = preg_replace('/'.$patterns['mailto'].'/i', '<a href="mailto:\\1">\\1</a>', $text);
+        $text = preg_replace('/' . $patterns['mailto'] . '/i', '<a href="mailto:\\1">\\1</a>', $text);
 
         // User
-        $text = preg_replace('/'.$patterns['user'].'/i', ' <a href="https://twitter.com/\\1" target="_blank">@\\1</a>', $text);
+        $text = preg_replace('/' . $patterns['user'] . '/i', ' <a href="https://twitter.com/\\1" target="_blank">@\\1</a>', $text);
 
         // Hashtag
-        $text = preg_replace('/'.$patterns['hashtag'].'/ui', '<a href="https://twitter.com/search?q=%23\\1" target="_blank">#\\1</a>', $text);
+        $text = preg_replace('/' . $patterns['hashtag'] . '/ui', '<a href="https://twitter.com/search?q=%23\\1" target="_blank">#\\1</a>', $text);
 
         // Long URL
-        $text = preg_replace('/'.$patterns['long_url'].'/', '>\\3...\\5\\6<', $text);
+        $text = preg_replace('/' . $patterns['long_url'] . '/', '>\\3...\\5\\6<', $text);
 
         // Remove multiple spaces
         $text = preg_replace('/\s+/', ' ', $text);
@@ -381,27 +343,27 @@ class Twitter extends tmhOAuth
 
     public function linkUser($user)
     {
-        return 'https://twitter.com/'.(is_object($user) ? $user->screen_name : $user);
+        return 'https://twitter.com/' . (is_object($user) ? $user->screen_name : $user);
     }
 
     public function linkTweet($tweet)
     {
-        return $this->linkUser($tweet->user).'/status/'.$tweet->id_str;
+        return $this->linkUser($tweet->user) . '/status/' . $tweet->id_str;
     }
 
     public function linkRetweet($tweet)
     {
-        return 'https://twitter.com/intent/retweet?tweet_id='.$tweet->id_str;
+        return 'https://twitter.com/intent/retweet?tweet_id=' . $tweet->id_str;
     }
 
     public function linkAddTweetToFavorites($tweet)
     {
-        return 'https://twitter.com/intent/favorite?tweet_id='.$tweet->id_str;
+        return 'https://twitter.com/intent/favorite?tweet_id=' . $tweet->id_str;
     }
 
     public function linkReply($tweet)
     {
-        return 'https://twitter.com/intent/tweet?in_reply_to='.$tweet->id_str;
+        return 'https://twitter.com/intent/tweet?in_reply_to=' . $tweet->id_str;
     }
 
     public function error()
@@ -418,7 +380,7 @@ class Twitter extends tmhOAuth
 
     private function jsonDecode($json, $assoc = false)
     {
-        if (version_compare(PHP_VERSION, '5.4.0', '>=') && ! (defined('JSON_C_VERSION') && PHP_INT_SIZE > 4)) {
+        if (version_compare(PHP_VERSION, '5.4.0', '>=') && !(defined('JSON_C_VERSION') && PHP_INT_SIZE > 4)) {
             return json_decode($json, $assoc, 512, JSON_BIGINT_AS_STRING);
         } else {
             return json_decode($json, $assoc);
