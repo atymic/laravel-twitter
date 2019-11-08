@@ -10,11 +10,14 @@ Twitter API for Laravel 5.5+ & 6.x, based on `thujohn/twitter`
 
 You need to create an application and create your access token in the [Application Management](https://apps.twitter.com/).
 
-## Split from thujohn/twitter & Roadmap
+## ~Split from thujohn/twitter & Roadmap~
 
-Unfortunately [thujohn/twitter](https://github.com/thujohn/twitter/issues/261) is no longer maintained. As a result, we
+The main package is maintained again, thus this fork is no longer required and will be archived.
+https://github.com/atymic/twitter
+
+~Unfortunately [thujohn/twitter](https://github.com/thujohn/twitter/issues/261) is no longer maintained. As a result, we
 have created a fork here. The plan is to continue developing the package separate from the main repository, and merge
-back in our changes if becomes maintained again.
+back in our changes if becomes maintained again.~
 
 The rough roadmap for the package is:
 
